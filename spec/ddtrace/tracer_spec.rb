@@ -208,6 +208,11 @@ RSpec.describe Datadog::Tracer do
 
         it { expect(trace).to eq(result) }
 
+        it do
+          trace
+          expect(span.name).to eq(name)
+        end
+
         it 'tracks the number of allocations made in the span' do
           skip 'Test unstable; improve stability before re-enabling.'
 
@@ -329,8 +334,17 @@ RSpec.describe Datadog::Tracer do
 
       context 'when the block raises an error' do
         let(:block) { proc { raise error } }
-        let(:error) { error_class.new }
-        let(:error_class) { Class.new(StandardError) }
+        let(:error) { error_class.new('error message') }
+        let(:error_class) { stub_const('TestError', Class.new(StandardError)) }
+
+        it do
+          expect { trace }.to raise_error(error)
+
+          expect(span).to have_error
+          expect(span).to have_error_type('TestError')
+          expect(span).to have_error_message('error message')
+          expect(span).to have_error_stack(include('tracer_spec.rb'))
+        end
 
         context 'and the on_error option' do
           context 'is not provided' do
@@ -352,8 +366,7 @@ RSpec.describe Datadog::Tracer do
                 )
               end.to raise_error(error)
 
-              expect(spans).to have(1).item
-              expect(spans[0]).to_not have_error
+              expect(span).to_not have_error
             end
           end
 

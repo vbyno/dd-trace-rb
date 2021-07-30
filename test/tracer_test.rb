@@ -3,53 +3,6 @@ require 'ddtrace/tracer'
 
 # rubocop:disable Metrics/ClassLength
 class TracerTest < Minitest::Test
-  def test_trace
-    tracer = get_test_tracer
-
-    ret = tracer.trace('something') do |s|
-      assert_equal(s.name, 'something')
-      assert_nil(s.end_time)
-      sleep(0.001)
-      :return_val
-    end
-
-    assert_equal(ret, :return_val)
-
-    spans = tracer.writer.spans()
-    assert_equal(spans.length, 1)
-    span = spans[0]
-    assert_equal(span.name, 'something')
-    assert span.to_hash[:duration] > 0
-  end
-
-  def test_trace_no_block
-    tracer = get_test_tracer
-    span = tracer.trace('something')
-
-    assert !span.nil?
-    assert_equal(span.name, 'something')
-  end
-
-  def test_trace_error
-    tracer = get_test_tracer
-
-    assert_raises ZeroDivisionError do
-      tracer.trace('something') do |s|
-        assert_nil(s.end_time)
-        1 / 0
-      end
-    end
-
-    spans = tracer.writer.spans()
-    assert_equal(spans.length, 1)
-    span = spans[0]
-    assert !span.end_time.nil?
-    assert_equal(span.name, 'something')
-    assert_equal(span.get_tag('error.msg'), 'divided by 0')
-    assert_equal(span.get_tag('error.type'), 'ZeroDivisionError')
-    assert span.get_tag('error.stack').include?('tracer_test.rb')
-  end
-
   def test_trace_non_standard_error
     # Check that even non-standard errors are trapped.
     # Normally one should *never* catch those in Ruby but... we re-raise
